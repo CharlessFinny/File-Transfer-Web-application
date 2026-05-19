@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Dashboard | FileShare Pro</title>
+
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<script src="{{ url_for('static', filename='script.js') }}" defer></script>
+
+
+<style>
+/* (KEEP YOUR EXISTING CSS — NO CHANGE NEEDED HERE) */
+</style>
+</head>
+
+<body>
+
+<!-- ================= NAVBAR ================= -->
+<nav class="navbar">
+    <h2>📁 FileTransfer</h2>
+
+    <div class="nav-right">
+        <div class="profile-container">
+
+            <div class="profile-trigger" onclick="toggleProfile()">
+                <div class="profile-icon">
+                    {{ user.username[0]|upper }}
+                </div>
+                <span class="profile-text">Profile</span>
+            </div>
+
+            <div class="profile-dropdown" id="profileDropdown">
+                <div class="profile-info">
+                    <strong>{{ user.username }}</strong><br>
+                    <small>{{ user.email }}</small>
+                </div>
+
+                <hr>
+
+                <a href="#" onclick="openEditModal()">✏️ Edit Profile</a>
+                <a href="/logout">🚪 Logout</a>
+            </div>
+
+        </div>
+    </div>
+</nav>
+
+
+<!-- ================= FLASH ================= -->
+{% with messages = get_flashed_messages() %}
+{% if messages %}
+<div class="flash-msg" id="flashMsg">
+    {{ messages[0] }}
+</div>
+{% endif %}
+{% endwith %}
+
+
+<!-- ================= MAIN ================= -->
+<div class="main">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+        <button data-section="upload" class="active-nav" onclick="showSection('upload')">📤 Upload</button>
+        <button data-section="sent" onclick="showSection('sent')">📨 Sent</button>
+        <button data-section="received" onclick="showSection('received')">📩 Received</button>
+        <button data-section="trash" onclick="showSection('trash')">🗑️ Trash</button>
+        <button data-section="groups" onclick="showSection('groups')">👥 Groups</button>
+    </aside>
+
+
+    <!-- CONTENT -->
+    <main class="content">
+
+        <!-- ================= UPLOAD ================= -->
+        <div id="upload" class="section active">
+            <h3 style="margin-bottom: 24px;">Send New Files</h3>
+
+            <div style="background: white; padding: 30px; border-radius: 16px; border: 1px solid var(--border);">
+                
+                <form action="/upload" method="POST" enctype="multipart/form-data">
+
+<!-- MODE SELECTION -->
+<label>Mode</label>
+<div class="mode-switch">
+    <label>
+        <input type="radio" name="mode" value="individual" checked>
+        Individual
+    </label>
+
+    <label>
+        <input type="radio" name="mode" value="group">
+        Group
+    </label>
+</div>
+
+<!-- INDIVIDUAL INPUT -->
+<div id="individualInput">
+    <label>Recipients</label>
+    <input type="text"
+           name="receivers"
+           id="receiversInput"
+           class="search-input"
+           placeholder="Enter emails separated by commas">
+</div>
+
+<!-- GROUP SELECT -->
+<div id="groupInput" style="display:none;">
+    <label>Select Group</label>
+    <select name="list_id" id="groupSelect" class="search-input" >
+        <option value="">-- Select Group --</option>
+        {% for l in lists %}
+            <option value="{{ l.id }}">{{ l.list_name }}</option>
+        {% endfor %}
+    </select>
+</div>
+
+                    <!-- DESCRIPTION -->
+                    <label>Message</label>
+                    <textarea name="description" class="search-input"
+                              placeholder="Add a short note..." rows="3"
+                              style="margin-bottom: 20px;"></textarea>
+
+                    <!-- DROP AREA -->
+                   <div id="drop-area" class="upload-box">
+    <p class="upload-text">Upload your files</p>
+
+<small style="color:#64748b; margin-top:-8px;">
+    Drag & drop files or browse from device
+</small>
+
+    <!-- Hidden real input -->
+    <input type="file" name="files" multiple required class="file-input" id="fileInput" hidden>
+
+    <!-- Custom button -->
+    <button type="button" class="upload-btn"
+        onclick="document.getElementById('fileInput').click()">
+         Choose Files
+    </button>
+
+    <!-- File names -->
+    <div id="fileList" class="file-list">No files selected</div>
+</div>
+
+                    <button type="submit" style="width:100%; padding:12px; background:var(--primary); color:white; border:none; border-radius:8px;">
+                        Upload & Send
+                    </button>
+
+                </form>
+
+            </div>
+        </div>
+
+
+        <!-- ================= SENT ================= -->
+        <!-- REMOVE old delete button from action-bar -->
+
+<!-- ================= SENT ================= -->
+<div id="sent" class="section">
+
+    <!-- ACTION BAR -->
+    <div class="action-bar">
+
+        <label>
+            <input type="checkbox" onclick="toggleSelectAll('sent-list', this)">
+            Select All
+        </label>
+        <select onchange="filterByType('sent')" class="search-input" style="width:90px;">
+            <option value="both">All</option>
+            <option value="individual">Individual</option>
+            <option value="group">Group</option>
+        </select>
+
+    </div>
+        <input type="text"
+               class="search-input"
+               placeholder="Search..."
+               onkeyup="filterFiles(this,'sent-list')">
+      
+       <button id="deleteBtn"
+        class="action-btn delete"
+        onclick="bulkDelete('sent-list')"
+        disabled>
+        
+
+    <span class="icon">🗑</span>
+    <span class="text">Delete</span>
+    
+    <span class="count" id="deleteCount">0</span>
+
+</button>
+<button onclick="resetTable()" class="reset-btn">
+    🔄 Reset
+</button>
+    
+
+    <!-- FILE LIST -->
+<table class="file-table" id="sent-table">
+<thead>
+<tr>
+    <!-- ✅ CHECKBOX COLUMN -->
+    <th style="width:40px;"></th>
+
+    <th>
+        <div class="th-inner">
+            <span>S.No</span>
+            <div class="sort-icons">
+                <button onclick="rotateUp('sent-table')">▲</button>
+                <button onclick="rotateDown('sent-table')">▼</button>
+            </div>
+        </div>
+    </th>
+
+    <th>Receiver</th>
+    <th>File Name</th>
+<th>
+    <div class="th-inner">
+        <span>Type</span>
+
+        <select onchange="filterByFileType(this, 'sent-list')" class="type-filter">
+            <option value="all">All</option>
+            <option value="txt">txt</option>
+            <option value="pdf">pdf</option>
+            <option value="png">png</option>
+            <option value="jpg">jpg</option>
+            <option value="jpeg">jpeg</option>
+            <option value="zip">zip</option>
+        </select>
+        
+    </div>
+    
+</th>
+
+    <th>
+        <div class="th-inner">
+            <span>Size</span>
+            <span class="sort-icons">
+                <button onclick="sortTable('sent-table', 5, 'size', 'asc')">▲</button>
+                <button onclick="sortTable('sent-table', 5, 'size', 'desc')">▼</button>
+            </span>
+        </div>
+    </th>
+
+    <th>
+        <div class="th-inner">
+            <span>Sent At</span>
+            <div class="sort-icons">
+                <button onclick="sortTable('sent-table', 6, 'date', 'asc')">▲</button>
+                <button onclick="sortTable('sent-table', 6, 'date', 'desc')">▼</button>
+            </div>
+        </div>
+    </th>
+
+    <th>Actions</th>
+</tr>
+</thead>
+
+<tbody id="sent-list">  <!-- 🔥 IMPORTANT -->
+
+{% for file in sent %}
+<tr data-mode="{{ 'group' if file.groupFlag else 'individual' }}">
+
+    <!-- ✅ CHECKBOX -->
+    <td>
+        <input type="checkbox"
+               class="file-checkbox"
+               value="{{ file.id }}"
+               onchange="handleCheckboxChange('sent-list','deleteBtn','deleteCount')">
+    </td>
+
+    <!-- SERIAL -->
+    <td>{{ loop.index }}</td>
+
+    <td>{{ file.receiver_name }}</td>
+<td>
+
+    <div class="file-name">
+
+        <a href="/preview/{{ file.id }}"
+           class="preview-link">
+
+            {{ file.filename }}
+
+        </a>
+
+    </div>
+
+    {% if file.description %}
+    <div class="file-message">
+        💬 {{ file.description }}
+    </div>
+    {% endif %}
+
+</td>
+    <td>{{ file.file_type }}</td>
+
+    <td>
+        {% if file.file_size %}
+            {{ (file.file_size / 1024)|round(2) }} KB
+        {% else %}
+            -
+        {% endif %}
+    </td>
+
+    <td>{{ file.upload_time }}</td>
+
+    <td>
+        <a href="/preview/{{ file.id }}">👁</a>
+        <a href="/download/{{ file.id }}">⬇</a>
+        <a href="/delete/{{ file.id }}">🗑</a>
+    </td>
+
+</tr>
+{% endfor %}
+<tr id="no-type-row-sent" style="display:none;">
+    <td colspan="8" style="text-align:center; padding:20px; color:#64748b;">
+        📂 No files found
+    </td>
+</tr>
+
+
+</tbody>
+</table>
+
+</div>
+                        
+                
+          <!-- ================= RECEIVED ================= -->
+       <!-- ================= RECEIVED ================= -->
+<!-- ================= RECEIVED ================= -->
+<div id="received" class="section">
+
+    <!-- ACTION BAR -->
+    <div class="action-bar">
+
+        <label>
+            <input type="checkbox" onclick="toggleSelectAll('received-list', this)">
+            Select All
+        </label>
+
+        <select onchange="filterByType('received')" class="search-input" style="width:90px;">
+            <option value="both">All</option>
+            <option value="individual">Individual</option>
+            <option value="group">Group</option>
+        </select>
+
+    </div>
+
+    <input type="text"
+           class="search-input"
+           placeholder="Search..."
+           onkeyup="filterFiles(this,'received-list')">
+
+    <!-- DELETE -->
+    <button id="deleteBtnReceived"
+        class="action-btn delete"
+        onclick="bulkDelete('received-list')"
+        disabled>
+
+        <span class="icon">🗑</span>
+        <span class="text">Delete</span>
+        <span class="count" id="deleteCountReceived">0</span>
+    </button>
+
+    <!-- OPTIONAL RESET (same as sent) -->
+    <button onclick="resetReceived()" class="reset-btn">
+        🔄 Reset
+    </button>
+
+    <!-- TABLE -->
+    <table class="file-table" id="received-table">
+
+    <thead>
+    <tr>
+        <th style="width:40px;"></th>
+
+        <th>
+            <div class="th-inner">
+                <span>S.No</span>
+                <div class="sort-icons">
+                    <button onclick="rotateUp('received-table')">▲</button>
+                    <button onclick="rotateDown('received-table')">▼</button>
+                </div>
+            </div>
+        </th>
+
+        <!-- 🔥 CHANGE HERE -->
+        <th>Sender</th>
+
+        <th>File Name</th>
+
+        <th>
+            <div class="th-inner">
+                <span>Type</span>
+
+                <select onchange="filterByFileType(this, 'received-list')" class="type-filter">
+                    <option value="all">All</option>
+                    <option value="txt">txt</option>
+                    <option value="pdf">pdf</option>
+                    <option value="png">png</option>
+                    <option value="jpg">jpg</option>
+                    <option value="jpeg">jpeg</option>
+                    <option value="zip">zip</option>
+                </select>
+            </div>
+        </th>
+
+        <th>
+            <div class="th-inner">
+                <span>Size</span>
+                <span class="sort-icons">
+                    <button onclick="sortTable('received-table', 5, 'size', 'asc')">▲</button>
+                    <button onclick="sortTable('received-table', 5, 'size', 'desc')">▼</button>
+                </span>
+            </div>
+        </th>
+
+        <th>
+            <div class="th-inner">
+                <span>Received At</span>
+                <div class="sort-icons">
+                    <button onclick="sortTable('received-table', 6, 'date', 'asc')">▲</button>
+                    <button onclick="sortTable('received-table', 6, 'date', 'desc')">▼</button>
+                </div>
+            </div>
+        </th>
+
+        <th>Actions</th>
+    </tr>
+    </thead>
+
+    <tbody id="received-list">
+
+    {% for file in received %}
+    <tr data-mode="{{ 'group' if file.groupFlag else 'individual' }}">
+
+        <!-- CHECKBOX -->
+        <td>
+            <input type="checkbox"
+                   class="file-checkbox"
+                   value="{{ file.id }}"
+                   onchange="handleCheckboxChange('received-list','deleteBtnReceived','deleteCountReceived')">
+        </td>
+
+        <!-- SERIAL -->
+        <td>{{ loop.index }}</td>
+
+        <!-- 🔥 CHANGE HERE -->
+        <td>{{ file.sender_name }}</td>
+
+        <td>
+
+    <div class="file-name">
+        {{ file.filename }}
+    </div>
+
+    {% if file.description %}
+    <div class="file-message">
+        💬 {{ file.description }}
+    </div>
+    {% endif %}
+
+</td>
+        <td>{{ file.file_type }}</td>
+
+        <td>
+            {% if file.file_size %}
+                {{ (file.file_size / 1024)|round(2) }} KB
+            {% else %}
+                -
+            {% endif %}
+        </td>
+
+        <td>{{ file.upload_time }}</td>
+
+        <td>
+            <a href="/preview/{{ file.id }}">👁</a>
+            <a href="/download/{{ file.id }}">⬇</a>
+            <a href="/delete/{{ file.id }}">🗑</a>
+        </td>
+
+    </tr>
+    {% endfor %}
+
+<tr id="no-type-row-received" style="display:none;">
+    <td colspan="8" style="text-align:center; padding:20px; color:#64748b;">
+        📂 No files found
+    </td>
+</tr>
+
+    </tbody>
+    </table>
+
+</div>
+        <!-- ================= TRASH ================= -->
+<div id="trash" class="section">
+
+    <!-- ACTION BAR -->
+    <div class="action-bar">
+
+        <label>
+            <input type="checkbox" onclick="toggleSelectAll('trash-list', this)">
+            Select All
+        </label>
+
+        <!-- TYPE FILTER (same as received) -->
+        <select onchange="filterByType('trash')" class="search-input" style="width:90px;">
+            <option value="both">All</option>
+            <option value="individual">Individual</option>
+            <option value="group">Group</option>
+        </select>
+
+    </div>
+
+    <!-- SEARCH -->
+    <input type="text"
+           class="search-input"
+           placeholder="Search..."
+           onkeyup="filterFiles(this,'trash-list')">
+
+    <!-- ACTION BUTTONS -->
+    <div class="action-group">
+
+        <button id="restoreBtn"
+            class="action-btn restore"
+            onclick="bulkRestore()"
+            disabled>
+
+            <span class="icon">♻</span>
+            <span class="text">Restore</span>
+            <span class="count" id="restoreCount">0</span>
+        </button>
+
+        <button id="deleteForeverBtn"
+            class="action-btn delete"
+            onclick="bulkPermanentDelete()"
+            disabled>
+
+            <span class="icon">🗑</span>
+            <span class="text">Delete Forever</span>
+            <span class="count" id="deleteForeverCount">0</span>
+        </button>
+
+        <button onclick="resetTrash()" class="reset-btn">
+            🔄 Reset
+        </button>
+
+    </div>
+
+    <!-- TABLE -->
+    <table class="file-table" id="trash-table">
+
+    <thead>
+    <tr>
+        <th style="width:40px;"></th>
+            <th>
+        <div class="th-inner">
+            <span>S.No</span>
+            <div class="sort-icons">
+                <button onclick="rotateUp('trash-table')">▲</button>
+                <button onclick="rotateDown('trash-table')">▼</button>
+            </div>
+        </div>
+    </th>
+        <th>Sender</th>
+        <th>Receiver</th>
+        <th>File Name</th>
+            <th>
+        <div class="th-inner">
+            <span>Type</span>
+
+            <select onchange="filterByFileType(this, 'trash-list')" class="type-filter">
+                <option value="all">All</option>
+                <option value="txt">txt</option>
+                <option value="pdf">pdf</option>
+                <option value="png">png</option>
+                <option value="jpg">jpg</option>
+                <option value="jpeg">jpeg</option>
+                <option value="zip">zip</option>
+            </select>
+        </div>
+    </th>
+            <th>
+        <div class="th-inner">
+            <span>Deleted At</span>
+            <div class="sort-icons">
+                <button onclick="sortTable('trash-table', 6, 'date', 'asc')">▲</button>
+                <button onclick="sortTable('trash-table', 6, 'date', 'desc')">▼</button>
+            </div>
+        </div>
+    </th>
+        <th>Actions</th>
+    </tr>
+    </thead>
+
+    <tbody id="trash-list">
+
+    {% for file in trash %}
+    <tr data-mode="{{ 'group' if file.groupFlag else 'individual' }}">
+
+        <td>
+            <input type="checkbox"
+                   class="file-checkbox"
+                   value="{{ file.id }}"
+                   onchange="handleTrashSelection()">
+        </td>
+
+        <td>{{ loop.index }}</td>
+        <td>{{ file.sender_name }}</td>
+        <td>{{ file.receiver_name }}</td>
+        <td>
+
+    <div class="file-name">
+        {{ file.filename }}
+    </div>
+
+    {% if file.description %}
+    <div class="file-message">
+        💬 {{ file.description }}
+    </div>
+    {% endif %}
+
+</td>
+        <td>{{ file.file_type }}</td>
+        <td>{{ file.deleted_at }}</td>
+
+        <td>
+            <a href="/restore/{{ file.id }}">♻</a>
+            <a href="/permanent_delete/{{ file.id }}">🗑</a>
+        </td>
+
+    </tr>
+    {% endfor %}
+
+    <!-- EMPTY STATE -->
+    <tr id="no-type-row-trash" style="display:none;">
+        <td colspan="8" style="text-align:center; padding:20px; color:#64748b;">
+            📂 No files found
+        </td>
+    </tr>
+
+    </tbody>
+    </table>
+
+</div>
+
+        <!-- ================= GROUPS ================= -->
+<div id="groups" class="section">
+
+    <div class="group-header">
+        <h3>👥 Contact Groups</h3>
+        <button class="primary-btn" onclick="openGroupModal()">+ New Group</button>
+    </div>
+
+<div class="group-grid">
+    {% for l in lists %}
+    <div class="group-card">
+
+        <!-- TOP -->
+<div class="group-top">
+    <div class="group-info">
+        <div class="group-avatar">
+            {{ l.list_name[0]|upper }}
+        </div>
+
+        <div>
+            <h4>{{ l.list_name }}</h4>
+            <small>{{ l.member_count }} members</small>
+        </div>
+    </div>
+
+    <div class="group-actions">
+        
+        <button type="button" class="toggle-btn" data-id="{{ l.id }}">▼</button>
+        <button class="edit-btn" data-id="{{ l.id }}">✏️</button>
+        <button class="delete-btn" data-id="{{ l.id }}">🗑</button>
+    </div>
+</div>
+
+        <!-- MEMBERS DROPDOWN -->
+        <div id="members-{{ l.id }}" class="group-members-dropdown">
+
+            {% if l.members %}
+                {% for m in l.members %}
+                <div class="member-row">
+                    <div class="member-avatar">
+                        {{ m.name[0]|upper }}
+                    </div>
+                    <div class="member-info">
+                        <span>{{ m.name }}</span>
+                        <small>{{ m.email }}</small>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p class="no-members">No members</p>
+            {% endif %}
+
+        </div>
+
+    </div>
+    {% endfor %}
+</div>
+
+</div>
+
+
+        <!-- ================= GROUP MODAL ================= -->
+<div id="groupModal" class="modal-overlay">
+
+    <div class="modal-card modern-modal">
+
+        <!-- HEADER -->
+        <div class="modal-header modern-header">
+            <div>
+                <h2 id="modalTitle">Create Group</h2>
+                <p class="subtitle">Organize users into a reusable group</p>
+            </div>
+            <span class="close-btn" onclick="closeGroupModal()">✖</span>
+        </div>
+
+        <!-- BODY -->
+        <div class="modal-body modern-body">
+
+            <input type="hidden" id="editingListId">
+
+            <!-- GROUP NAME -->
+            <div class="form-group">
+                <label>Group Name</label>
+                <input type="text" id="groupName" placeholder="e.g. Project Team">
+            </div>
+
+            <!-- MEMBER SELECT -->
+            <div class="form-group">
+                <label>Select Members</label>
+
+                <div class="multi-select modern-select">
+
+                    <!-- SEARCH -->
+                    <div class="search-box">
+                        <input type="text" id="userSearch" placeholder="🔍 Search users...">
+                    </div>
+
+                    <!-- DROPDOWN -->
+                    <div id="userDropdown" class="dropdown-list modern-dropdown"></div>
+
+                    <!-- SELECTED -->
+                    <div id="selectedUsers" class="selected-users modern-chips"></div>
+
+                </div>
+            </div>
+
+        </div>
+
+        <!-- FOOTER -->
+        <div class="modal-footer modern-footer">
+
+    <button class="action-btn cancel-btn" onclick="closeGroupModal()">
+        <span class="icon">✖</span>
+        <span>Cancel</span>
+    </button>
+
+    <button class="action-btn save-btn" onclick="saveGroup()">
+        <span class="icon">✔</span>
+        <span>Save Group</span>
+    </button>
+
+</div>
+
+    </div>
+</div>
+
+
+    </main>
+</div>
+<script>
+    window.ALL_USERS = JSON.parse('{{ all_users | tojson | safe }}');
+</script>
+
+
+<!-- ================= EDIT PROFILE MODAL ================= -->
+<div id="editModal" class="modal-overlay">
+
+    <div class="modal-card">
+
+        <!-- HEADER -->
+        <div class="modal-header">
+            <h2>Edit Profile</h2>
+            <span onclick="closeEditModal()">✖</span>
+        </div>
+
+        <!-- BODY -->
+        <div class="modal-body">
+
+            <label>Username</label>
+            <input type="text" id="editUsername" value="{{ user.username }}">
+
+            <label>Email</label>
+            <input type="email" id="editEmail" value="{{ user.email }}">
+
+            <p id="profileError" class="error-msg"></p>
+
+        </div>
+
+        <!-- FOOTER -->
+        <div class="modal-footer">
+
+            <button class="action-btn cancel-btn"
+                    onclick="closeEditModal()">
+                ✖ Cancel
+            </button>
+
+            <button class="action-btn save-btn"
+                    onclick="updateProfile()">
+                ✔ Save
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+</body>
+</html>
