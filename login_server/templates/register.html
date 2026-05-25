@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Register</title>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Segoe UI', sans-serif;
+
+            background: linear-gradient(270deg,
+                rgba(52, 152, 219, 0.8),
+                rgba(142, 68, 173, 0.8),
+                rgba(26, 188, 156, 0.8)
+            );
+
+            background-size: 400% 400%;
+            animation: gradientMove 12s ease infinite;
+        }
+
+        @keyframes gradientMove {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .container {
+            width: 350px;
+            padding: 35px;
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(12px);
+            border-radius: 15px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+            text-align: center;
+            color: white;
+        }
+
+        h2 {
+            margin-bottom: 20px;
+        }
+
+        .input-group {
+            position: relative;
+            margin: 20px 0;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.2);
+            color: black;
+            outline: none;
+        }
+
+        .input-group label {
+            position: absolute;
+            left: 12px;
+            top: 12px;
+            color: #ddd;
+            font-size: 14px;
+            pointer-events: none;
+            transition: 0.3s;
+        }
+
+        .input-group input:focus + label,
+        .input-group input:not(:placeholder-shown) + label {
+            top: -8px;
+            left: 8px;
+            font-size: 11px;
+            background: rgba(0,0,0,0.5);
+            padding: 2px 6px;
+            border-radius: 5px;
+        }
+
+        .toggle {
+            position: absolute;
+            right: 10px;
+            top: 12px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background: #1abc9c;
+            border: none;
+            border-radius: 8px;
+            color: black;
+            font-size: 16px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        button:hover {
+            background: #16a085;
+            transform: scale(1.03);
+        }
+
+        p {
+            margin-top: 15px;
+        }
+
+        a {
+            color: #1abc9c;
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        .error {
+            color: #ff6b6b;
+            font-size: 12px;
+            text-align: left;
+            margin-top: 10px;
+        }
+
+        .success {
+            color: lightgreen;
+            font-size: 12px;
+            text-align: left;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+    <h2>Create Account</h2>
+
+    <form method="POST" onsubmit="return validateForm()">
+
+        <div class="input-group">
+            <input type="text" name="username" id="username" placeholder=" " required>
+            <label>Username</label>
+        </div>
+
+        <div class="input-group">
+            <input type="email" name="email" id="email" placeholder=" " required oninput="this.value = this.value.toLowerCase()">
+            <label>Email</label>
+        </div>
+
+        <div class="input-group">
+            <input type="password" name="password" id="password" placeholder=" " required>
+            <label>Password</label>
+            <span class="toggle" onclick="togglePassword()">👁</span>
+        </div>
+
+        <!-- BACKEND MESSAGES -->
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div class="error">{{ messages[0] }}</div>
+            {% endif %}
+        {% endwith %}
+
+        <!-- FRONTEND ERROR -->
+        <div class="error" id="error"></div>
+
+        <button type="submit">Register</button>
+    </form>
+
+    <p>Already have account? <a href="/login">Login</a></p>
+</div>
+
+<script>
+function togglePassword() {
+    let pass = document.getElementById("password");
+    pass.type = pass.type === "password" ? "text" : "password";
+}
+
+function validateForm() {
+    let password = document.getElementById("password").value;
+    let error = document.getElementById("error");
+
+    let pattern = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&]).{6,}$/;
+
+    if (!pattern.test(password)) {
+        error.textContent = "Password must include letter, number & special character";
+        return false;
+    }
+
+    error.textContent = "";
+    return true;
+}
+</script>
+
+</body>
+</html>
