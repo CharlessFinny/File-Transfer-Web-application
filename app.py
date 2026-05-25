@@ -41,8 +41,10 @@ def is_safe_file(filepath):
     return mime and mime.startswith(('image', 'text', 'application/pdf', 'application/zip'))
 
 # ================= REGISTER =================
-@app.route('/register', methods=['GET', 'POST'])
+# ================= REGISTER =================
+@app.route('/register')
 def register():
+    return redirect('http://localhost:8000/register')
     if request.method == 'POST':
         username = request.form['username']
         email = request.form['email']
@@ -70,37 +72,27 @@ def register():
     return render_template('register.html')
 
 # ================= LOGIN =================
-@app.route('/login', methods=['GET', 'POST'])
+# ================= LOGIN =================
+@app.route('/login')
 def login():
-    if request.method == 'POST':
-        email = request.form['email']
-        password = request.form['password']
-
-        conn, cursor = get_db()
-        cursor.execute("SELECT * FROM users WHERE email=%s", (email,))
-        user = cursor.fetchone()
-        cursor.close()
-        conn.close()
-
-        if not user:
-            flash("User not found", "error")
-            return render_template('login.html')
-
-        if not check_password_hash(user['password'], password):
-            flash("Incorrect password", "error")
-            return render_template('login.html')
-
-        session['user_id'] = user['id']
-        return redirect('/home')
-
-    return render_template('login.html')
+    return redirect('http://localhost:8000/login')
 
 # ================= HOME =================
-@app.route('/home')
+# ================= HOME =================
+@app.route('/home', methods=['GET', 'POST'])
 def home():
-    if 'user_id' not in session:
-        return redirect('/login')
 
+    # 🔥 RECEIVE USER FROM LOGIN SERVER
+    if request.method == 'POST':
+
+        logged_user = request.form.get('loggedUser')
+
+        if logged_user:
+            session['user_id'] = int(logged_user)
+
+    # 🔥 SESSION CHECK
+    if 'user_id' not in session:
+        return redirect('http://localhost:8000/login')
     conn, cursor = get_db()
 
     try:
@@ -134,7 +126,7 @@ def home():
         # 🔥 attach members
         for l in lists:
             cursor.execute("""
-                SELECT name, email
+                SELECT username, email
                 FROM contact_list_members
                 WHERE list_id = %s
             """, (l['id'],))
@@ -142,7 +134,7 @@ def home():
             members = cursor.fetchall()
 
             l['members'] = [
-                {"name": m['name'], "email": m['email']}
+                {"name": m['username'], "email": m['email']}
                 for m in members
             ]
 
@@ -344,6 +336,7 @@ def upload():
 
     # ===== FILE PROCESS =====
 # ===== FILE PROCESS =====
+# ===== FILE PROCESS =====
     for file in clean_files:
 
         if not allowed_file(file.filename):
@@ -351,9 +344,7 @@ def upload():
 
         original_name = secure_filename(file.filename)
 
-        filename = f"{uuid.uuid4()}_{original_name}"
-
-        ext = os.path.splitext(filename)[1]
+        ext = os.path.splitext(original_name)[1]
 
         uuid_name = f"{uuid.uuid4()}{ext}"
 
@@ -368,26 +359,33 @@ def upload():
 
         file_size = os.path.getsize(sender_path)
 
-        file_type = filename.rsplit('.', 1)[1].lower()
+        file_type = original_name.rsplit('.', 1)[1].lower()
 
-        # SEND TO RECEIVERS
+        # 🔥 INSERT FOR EVERY RECEIVER
         for receiver_id in valid_receivers:
 
             cursor.execute("""
                 INSERT INTO files
-                (filename, filepath, file_type, file_size,
-                sender_id, receiver_id, description,
-                status, is_deleted, groupFlag)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, FALSE, %s)
+                (
+                    filename,
+                    filepath,
+                    file_type,
+                    file_size,
+                    sender_id,
+                    receiver_id,
+                    description,
+                    is_deleted,
+                    groupFlag
+                )
+                VALUES (%s,%s,%s,%s,%s,%s,%s,FALSE,%s)
             """, (
-                filename,
+                original_name,
                 sender_path,
                 file_type,
                 file_size,
                 session['user_id'],
                 receiver_id,
                 description,
-                "Not Seen",
                 is_group
             ))
 
@@ -409,27 +407,39 @@ def preview(file_id):
     if not file:
         return "File not found"
     if file['receiver_id'] == session['user_id']:
-        cursor.execute("UPDATE files SET status='Seen', seen_at=NOW() WHERE id=%s", (file_id,))
-        conn.commit()
+        pass
     cursor.close()
     conn.close()
     return send_file(file['filepath'])
 
 @app.route('/download/<int:file_id>')
 def download(file_id):
-    if 'user_id' not in session: return redirect('/login')
+
+    if 'user_id' not in session:
+        return redirect('/login')
+
     conn, cursor = get_db()
-    cursor.execute("SELECT * FROM files WHERE id=%s AND (sender_id=%s OR receiver_id=%s)", (file_id, session['user_id'], session['user_id']))
+
+    cursor.execute("""
+        SELECT * FROM files
+        WHERE id=%s
+        AND (sender_id=%s OR receiver_id=%s)
+    """, (
+        file_id,
+        session['user_id'],
+        session['user_id']
+    ))
+
     file = cursor.fetchone()
+
     if not file:
         cursor.close()
         conn.close()
         return "Unauthorized", 403
-    if file['receiver_id'] == session['user_id']:
-        cursor.execute("UPDATE files SET status='Seen', seen_at=NOW() WHERE id=%s", (file_id,))
-        conn.commit()
+
     cursor.close()
     conn.close()
+
     return send_file(file['filepath'], as_attachment=True)
 
 # ================= CONTACT LIST MANAGEMENT =================
@@ -452,7 +462,7 @@ def create_list():
     cursor.execute("INSERT INTO contact_lists (user_id, list_name) VALUES (%s, %s)", (session['user_id'], list_name))
     list_id = cursor.lastrowid
     for m in members:
-        cursor.execute("INSERT INTO contact_list_members (list_id, name, email) VALUES (%s, %s, %s)", (list_id, m['name'], m['email']))
+        cursor.execute("INSERT INTO contact_list_members (list_id, username, email) VALUES (%s, %s, %s)", (list_id, m['name'], m['email']))
     conn.commit()
     cursor.close()
     conn.close()
@@ -495,7 +505,7 @@ def update_list(list_id):
     cursor.execute("UPDATE contact_lists SET list_name=%s WHERE id=%s", (list_name, list_id))
     cursor.execute("DELETE FROM contact_list_members WHERE list_id=%s", (list_id,))
     for m in members:
-        cursor.execute("INSERT INTO contact_list_members (list_id, name, email) VALUES (%s, %s, %s)", (list_id, m['name'], m['email']))
+        cursor.execute("INSERT INTO contact_list_members (list_id, username, email) VALUES (%s, %s, %s)", (list_id, m['name'], m['email']))
     conn.commit()
     cursor.close()
     conn.close()
@@ -514,7 +524,7 @@ def get_list(list_id):
     cursor.execute("SELECT list_name FROM contact_lists WHERE id=%s", (list_id,))
     list_data = cursor.fetchone()
 
-    cursor.execute("SELECT name, email FROM contact_list_members WHERE list_id=%s", (list_id,))
+    cursor.execute("SELECT username AS name, email FROM contact_list_members WHERE list_id=%s", (list_id,))
     members = cursor.fetchall()
 
     return jsonify({
