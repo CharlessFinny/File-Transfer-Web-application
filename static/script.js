@@ -1042,14 +1042,35 @@ function smartFileName(name, maxLength = 105) {
     return main.slice(0, allowed) + "..." + suffix;
 }
 document.addEventListener("DOMContentLoaded", () => {
+
     document.querySelectorAll(".file-name").forEach(el => {
-        const full = el.textContent.trim();
 
-        el.setAttribute("title", full);
+        const link = el.querySelector("a");
 
-        // ✅ APPLY TRUNCATION
-        el.textContent = smartFileName(full);
+        // ✅ IF LINK EXISTS
+        if (link) {
+
+            const full = link.textContent.trim();
+
+            link.setAttribute("title", full);
+
+            // ✅ ONLY CHANGE LINK TEXT
+            link.textContent = smartFileName(full);
+
+        }
+
+        // ✅ NON-LINK CASE
+        else {
+
+            const full = el.textContent.trim();
+
+            el.setAttribute("title", full);
+
+            el.textContent = smartFileName(full);
+        }
+
     });
+
 });
 function getExtension(name) {
     const parts = name.split(".");
