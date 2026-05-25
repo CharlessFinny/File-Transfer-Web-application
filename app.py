@@ -40,7 +40,7 @@ def is_safe_file(filepath):
     mime, _ = mimetypes.guess_type(filepath)
     return mime and mime.startswith(('image', 'text', 'application/pdf', 'application/zip'))
 
-# ================= REGISTER =================
+
 # ================= REGISTER =================
 @app.route('/register')
 def register():
@@ -71,13 +71,13 @@ def register():
 
     return render_template('register.html')
 
-# ================= LOGIN =================
+
 # ================= LOGIN =================
 @app.route('/login')
 def login():
     return redirect('http://localhost:8000/login')
 
-# ================= HOME =================
+
 # ================= HOME =================
 @app.route('/home', methods=['GET', 'POST'])
 def home():
@@ -165,7 +165,7 @@ def home():
         """, (session['user_id'],))
         received = format_time(cursor.fetchall())
 
-        # ================= TRASH =================
+       
        # ================= TRASH =================
         cursor.execute("""
             SELECT f.*, 
@@ -258,7 +258,7 @@ def upload():
         seen.add(filename)
         clean_files.append(file)
 
-    # ===== GET RECEIVERS =====
+    
 # ===== GET RECEIVERS =====
     if list_id:
 
@@ -334,8 +334,7 @@ def upload():
 
     uploaded_count = 0
 
-    # ===== FILE PROCESS =====
-# ===== FILE PROCESS =====
+
 # ===== FILE PROCESS =====
     for file in clean_files:
 
